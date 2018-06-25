@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.ning.mapper.CompanyMapper" >
+  <resultMap id="BaseResultMap" type="com.ning.entity.Company" >
+    <id column="id" property="id" jdbcType="INTEGER" />
+    <result column="name" property="name" jdbcType="VARCHAR" />
+  </resultMap>
+  <sql id="Base_Column_List" >
+    id, name
+  </sql>
+
+  <!--
+       根据班级id查询班级信息(带老师的信息)
+       ##方式1. 联表查询
+       SELECT * FROM class c,teacher t WHERE c.teacher_id=t.t_id AND c.c_id=1;
+
+       ##方式2. 执行两次查询
+       SELECT * FROM class WHERE c_id=1;  //teacher_id=1
+       SELECT * FROM teacher WHERE t_id=1;//使用上面得到的teacher_id
+    -->
+
+  <!--
+   方式一：嵌套结果：使用嵌套结果映射来处理重复的联合结果的子集
+             封装联表查询的数据(去除重复的数据)
+        start
+  -->
+
+  <!--
+      方式一实现 一对多
+     【注意：此方法级联查询一对多时，只能查询一层级联，方式二可以查询多层】
+   -->
+  <select id="selectMethodTwo" resultMap="getDepartmentMap" parameterType="java.lang.Integer" >
+    select
+    *
+    from department d, employee e
+    where d.id = #{id,jdbcType=INTEGER} and d.id = e.d_id
+  </select>
+
+  <resultMap type="com.ning.entity.Department" id="getCompanyMap">
+    <id property="id" column="id"/>
+    <result property="name" column="name"/>
+    <result property="cId" column="c_id"/>
+    <!-- ofType指定students集合中的对象类型 -->
+    <collection property="employeeList" ofType="com.ning.entity.Employee">
+      <id property="id" column="id"/>
+      <result property="name" column="name"/>
+      <result property="dId" column="d_id"/>
+    </collection>
+  </resultMap>
+
+  <!--
+   方式一：嵌套结果：使用嵌套结果映射来处理重复的联合结果的子集
+             封装联表查询的数据(去除重复的数据)
+        end
+  -->
+
+  <!--
+    方式二：嵌套查询：通过执行另外一个SQL映射语句来返回预期的复杂类型
+         SELECT * FROM company WHERE id=1;
+         SELECT * FROM department WHERE c_id=1   //1 是上一个查询得到的c_id的值
+
+         start
+   -->
+  <!--
+      方式二实现 一对多
+   -->
+  <!-- 查询公司 -->
+  <select id="selectOne" resultMap="getDepartmentMap" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from company
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <resultMap id="getDepartmentMap" type="java.util.Map" >
+    <result property="id" column="id" />
+    <collection property="departmentList" column="id" javaType="list" select="getDepartments"/>
+  </resultMap>
+  <!-- 查询部门 -->
+  <select id="getDepartments"  parameterType="com.ning.entity.Company"  resultMap="getEmployeesMap">
+        select  id, name, c_id
+        from department
+        where c_id = #{id}
+  </select>
+  <!-- 查询部门下的人员 -->
+  <resultMap type="map" id="getEmployeesMap">
+    <result property="id" column="id"/>
+    <collection property="employeeList" column="id" javaType="list" select="getEmployees"></collection>
+  </resultMap>
+  <select id="getEmployees"  parameterType="com.ning.entity.Department"  resultType="map">
+        select   id, name, d_id from  employee where d_id =#{id}
+    </select>
+
+  <!--
+    方式二：嵌套查询：通过执行另外一个SQL映射语句来返回预期的复杂类型
+         SELECT * FROM company WHERE id=1;
+         SELECT * FROM department WHERE c_id=1   //1 是上一个查询得到的c_id的值
+
+         end
+   -->
+
+
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
+    select
+    <include refid="Base_Column_List" />
+    from company
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
+    delete from company
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.ning.entity.Company" >
+    insert into company (id, name)
+    values (#{id,jdbcType=INTEGER}, #{name,jdbcType=VARCHAR})
+  </insert>
+  <insert id="insertSelective" parameterType="com.ning.entity.Company" >
+    insert into company
+    <trim prefix="(" suffix=")" suffixOverrides="," >
+      <if test="id != null" >
+        id,
+      </if>
+      <if test="name != null" >
+        name,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides="," >
+      <if test="id != null" >
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="name != null" >
+        #{name,jdbcType=VARCHAR},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.ning.entity.Company" >
+    update company
+    <set >
+      <if test="name != null" >
+        name = #{name,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.ning.entity.Company" >
+    update company
+    set name = #{name,jdbcType=VARCHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+</mapper>
